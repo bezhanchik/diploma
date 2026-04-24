@@ -181,3 +181,4 @@ def admin_check(
     current_admin: Annotated[User, Depends(get_current_admin)],
 ):
     return {"is_admin": True}
+

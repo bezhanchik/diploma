@@ -65,6 +65,7 @@ function LoginPage() {
         <button className="bg-slate-900 text-white rounded-xl px-4 py-3">
           Войти
         </button>
+        <a href="/register" className=''>Зарегистрироваться</a>
       </form>
     </div>
   );

@@ -52,6 +52,7 @@ function RegisterPage() {
           placeholder="Имя"
           value={form.first_name}
           onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+          required
         />
 
         <input
@@ -60,6 +61,7 @@ function RegisterPage() {
           placeholder="Фамилия"
           value={form.last_name}
           onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+          required
         />
 
         <input
@@ -68,6 +70,7 @@ function RegisterPage() {
           placeholder="Email"
           value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })}
+          required
         />
 
         <input
@@ -76,6 +79,7 @@ function RegisterPage() {
           placeholder="Пароль"
           value={form.password}
           onChange={(e) => setForm({ ...form, password: e.target.value })}
+          required
         />
 
         {error && <p className="text-red-500 text-sm">{error}</p>}
