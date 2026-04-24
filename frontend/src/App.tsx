@@ -100,8 +100,8 @@ export default function App() {
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
         <AppRoutes />
-         <DevTools /> {/* Добавьте эту строку */}
-          <ReactQueryDevtools initialIsOpen={false} /> {/* Официальные девтулзы */}
+         {/* <DevTools />  */}
+          {/* <ReactQueryDevtools initialIsOpen={false} /> Официальные девтулзы */}
       </QueryClientProvider>
     </Provider>
   );
