@@ -14,6 +14,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 ADMIN_EMAILS = {
     "nepyxlox@gmail.com",
     "miyagi@mail.ru",
+    "ivan.ivanov@msu.ru",
 }
 
 
