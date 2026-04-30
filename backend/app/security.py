@@ -5,7 +5,7 @@ from pwdlib import PasswordHash
 
 SECRET_KEY = "change_me_to_a_long_random_secret"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
+ACCESS_TOKEN_EXPIRE_MINUTES = 60*24
 
 password_hasher = PasswordHash.recommended()
 

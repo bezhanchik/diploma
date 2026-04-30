@@ -20,6 +20,8 @@ from app.schemas import (
 from app.security import create_access_token, hash_password, verify_password
 from app.deps import get_current_user, get_current_admin
 
+
+
 app = FastAPI(title="HackSpaceEdu API")
 
 app.add_middleware(
@@ -140,6 +142,13 @@ def create_event(
     db.commit()
     db.refresh(event)
     return event
+
+@app.get("/events", response_model=list[EventOut])
+def get_events(
+    db: Annotated[Session, Depends(get_db)],
+):
+    events = db.scalars(select(Event)).all()
+    return events
 
 
 @app.put("/events/{event_id}", response_model=EventOut)
