@@ -1,4 +1,4 @@
-// src/App.tsx
+
 import { Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -12,6 +12,9 @@ import ProtectedRoute from './assets/components/ProtectedRoute';
 import PublicOnlyRoute from './assets/components/PublicOnlyRoute';
 import AdminPage from './pages/AdminPage';
 import AdminRoute from './assets/components/AdminRoute';
+import CasesPage from './pages/CasesPage';
+import ProfilePage from './pages/ProfilePage';
+import TeamsPage from './pages/TeamsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,13 +25,6 @@ const queryClient = new QueryClient({
   },
 });
 
-function TeamsPage() {
-  return <h2 className="text-2xl font-bold">Команды</h2>;
-}
-
-function CasesPage() {
-  return <h2 className="text-2xl font-bold">Кейсы</h2>;
-}
 
 function SchedulePage() {
   return <h2 className="text-2xl font-bold">Расписание</h2>;
@@ -57,6 +53,14 @@ function AppRoutes() {
         <Route path="cases" element={<CasesPage />} />
         <Route path="schedule" element={<SchedulePage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
+        <Route 
+        path="profile" 
+        element={
+          <ProtectedRoute> {/* Только для авторизованных */}
+            <ProfilePage />
+          </ProtectedRoute>
+        } 
+        />
 
         <Route path="login" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
         <Route path="register" element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
@@ -64,6 +68,7 @@ function AppRoutes() {
         <Route path="admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
+
     </Routes>
   );
 }

@@ -11,12 +11,6 @@ from app.security import decode_access_token
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
-ADMIN_EMAILS = {
-    "nepyxlox@gmail.com",
-    "miyagi@mail.ru",
-    "ivan.ivanov@msu.ru",
-}
-
 
 def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
@@ -46,10 +40,14 @@ def get_current_user(
 def get_current_admin(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> User:
-    if current_user.email not in ADMIN_EMAILS:
+    """
+    Проверяет, что текущий пользователь является администратором.
+    Теперь проверка идет через поле role в БД, а не через список email.
+    """
+    if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Недостаточно прав",
+            detail="Недостаточно прав. Требуются права администратора.",
         )
 
     return current_user

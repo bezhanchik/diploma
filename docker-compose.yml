@@ -1,0 +1,28 @@
+services:
+  # Удаляем контейнер с БД - не нужен
+  
+  backend:
+    build: ./backend
+    container_name: hackathon_backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Подключаемся к PostgreSQL на Windows (НЕ в Docker)
+      DATABASE_URL: postgresql+psycopg2://postgres:hajime2022@host.docker.internal:5432/Hackathons
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Для Windows
+
+  frontend:
+    build: ./frontend
+    container_name: hackathon_frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    stdin_open: true

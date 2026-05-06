@@ -1,21 +1,30 @@
+// src/store/store.ts (или authSlice.ts)
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 
+// 1. Описываем тип пользователя
+export interface User {
+  id: number;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  role?: string;
+}
+
 interface AuthState {
   token: string | null;
+  user: User | null; // ✅ Добавляем поле для данных пользователя
   isAdmin: boolean;
   isLoading: boolean;
   error: string | null;
 }
 
-// Проверяем, не истёк ли токен
 function getValidToken(): string | null {
   const token = localStorage.getItem('token');
   if (!token) return null;
   
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
-    // Если есть срок и он истёк — удаляем токен
     if (payload.exp && payload.exp * 1000 < Date.now()) {
       localStorage.removeItem('token');
       return null;
@@ -28,9 +37,10 @@ function getValidToken(): string | null {
 }
 
 const initialState: AuthState = {
-  token: getValidToken(), // ← Теперь проверяем срок
+  token: getValidToken(),
+  user: null, // ✅ Инициализируем как null
   isAdmin: false,
-  isLoading: !!getValidToken(), // Загружаем только если есть токен
+  isLoading: !!getValidToken(),
   error: null,
 };
 
@@ -41,6 +51,10 @@ const authSlice = createSlice({
     setToken: (state, action: PayloadAction<string>) => {
       state.token = action.payload;
       localStorage.setItem('token', action.payload);
+    },
+    // ✅ Новое действие для сохранения данных пользователя
+    setUser: (state, action: PayloadAction<User | null>) => {
+      state.user = action.payload;
     },
     setAdmin: (state, action: PayloadAction<boolean>) => {
       state.isAdmin = action.payload;
@@ -53,6 +67,7 @@ const authSlice = createSlice({
     },
     logout: (state) => {
       state.token = null;
+      state.user = null; // ✅ Очищаем пользователя при выходе
       state.isAdmin = false;
       state.error = null;
       localStorage.removeItem('token');
@@ -60,5 +75,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { setToken, setAdmin, setLoading, setError, logout } = authSlice.actions;
+// Экспортируем новые действия
+export const { setToken, setUser, setAdmin, setLoading, setError, logout } = authSlice.actions;
 export default authSlice.reducer;
