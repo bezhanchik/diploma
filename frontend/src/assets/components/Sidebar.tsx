@@ -2,7 +2,6 @@
 import { NavLink, Link } from "react-router-dom";
 import { useState } from "react";
 import { useAdminCheck } from "../../api/hooks";
-import { isAuth } from "../../shared/auth";
 import type { RootState } from '../../store/store'; // ✅ Типы стора
 import { useSelector } from 'react-redux'; // ✅ Добавлен useSelector
 
@@ -11,6 +10,8 @@ function Sidebar() {
   const { data: adminData } = useAdminCheck();
   const isAdmin = adminData?.is_admin || false;
   const user = useSelector((state: RootState) => state.auth.user);
+  const token = useSelector((state: RootState) => state.auth.token);
+
 
   // Базовые стили для ссылок
   const linkBase = 'flex items-center px-4 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden';
@@ -131,9 +132,9 @@ function Sidebar() {
           )}
         </nav>
 
-        {/* Футер сайдбара */}
+        {/* ✅ Футер сайдбара с реактивной проверкой авторизации */}
         <div className="mt-auto p-4 border-t border-slate-800">
-          {isAuth() ? ( // Проверка авторизации (нужно импортировать isAuth или брать из Redux)
+          {token ? ( // Проверяем токен из Redux, а не isAuth()
             <Link 
               to="/profile" 
               onClick={() => setIsOpen(false)}
@@ -143,7 +144,9 @@ function Sidebar() {
                 {user?.first_name?.charAt(0).toUpperCase() || 'U'}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">{user?.first_name || 'Пользователь'}</p>
+                <p className="text-sm font-medium text-white truncate">
+                  {user?.first_name || 'Пользователь'}
+                </p>
                 <p className="text-xs text-slate-500 truncate">Мой профиль</p>
               </div>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-500 group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">

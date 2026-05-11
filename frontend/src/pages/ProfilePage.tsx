@@ -1,9 +1,9 @@
 // src/pages/ProfilePage.tsx
 import { useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { logout } from '../shared/auth';
+import { logout } from '../store/authSlice';
 import { apiClient } from '../api/client';
 import type { RootState } from '../store/store';
 
@@ -26,7 +26,10 @@ type UserStats = {
 export default function ProfilePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const dispatch = useDispatch();
   const reduxUser = useSelector((state: RootState) => state.auth.user);
+  
+
   
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -78,7 +81,7 @@ export default function ProfilePage() {
   });
 
   const handleLogout = () => {
-    logout();
+    dispatch(logout());
     navigate('/login', { replace: true });
   };
 

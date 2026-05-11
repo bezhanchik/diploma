@@ -108,3 +108,17 @@ class TeamMember(Base):
     # Связи
     team = relationship("Team", back_populates="members")
     user = relationship("User")
+
+
+class Registration(Base):
+    __tablename__ = "registrations"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=False)
+    registered_at = Column(DateTime(timezone=True), server_default=func.now())
+    status = Column(String, default="pending")  # pending, confirmed, cancelled
+    
+    # Связи
+    user = relationship("User", backref="registrations")
+    event = relationship("Event", backref="registrations")

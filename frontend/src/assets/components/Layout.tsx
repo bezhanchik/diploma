@@ -3,17 +3,19 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import SearchBar from './SearchBar';
+import { useSelector } from 'react-redux'; // ✅ Импортируем
+import type { RootState } from '../../store/store';
 
 function Layout() {
   const location = useLocation();
   // Скрываем поиск на главной, логине и регистрации
   const hideSearchBar = ['/', '/login', '/register'].includes(location.pathname);
-
+  const token = useSelector((state: RootState) => state.auth.token);
   return (
     <div className="min-h-screen bg-slate-50 flex text-slate-800 font-sans overflow-hidden">
       
       {/* Сайдбар: занимает свое место в потоке */}
-      <Sidebar />
+      <Sidebar key={token ? 'logged-in' : 'logged-out'} />
 
       {/* Правая часть: растягивается на всю оставшуюся ширину */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
