@@ -1,52 +1,8 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-
-const API_URL = 'http://127.0.0.1:8000';
+import { Link } from 'react-router-dom';
+import { useRegisterForm } from '../hooks/useRegisterForm';
 
 export default function RegisterPage() {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    first_name: '',
-    last_name: '',
-  });
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    try {
-      const response = await fetch(`${API_URL}/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || 'Ошибка регистрации');
-      }
-
-      navigate('/login', { replace: true });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка регистрации');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { formData, handleChange, error, isLoading, handleSubmit } = useRegisterForm();
 
   return (
     <div className="max-w-md mx-auto mt-12">

@@ -1,54 +1,12 @@
 // src/pages/TeamsPage.tsx
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '../api/client';
-
-// Типизация
-type User = {
-  id: number;
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
-  role: string;
-};
-
-type TeamMember = {
-  user_id: number;
-  user?: User;
-  role: string;
-};
-
-type Team = {
-  id: number;
-  name: string;
-  event_id: number | null;
-  track_id: number | null;
-  captain_id: number | null;
-  captain?: User;
-  members?: TeamMember[];
-};
-
-type Event = {
-  id: number;
-  title: string;
-};
-
-type Track = {
-  id: number;
-  name: string;
-};
-
-type CreateTeamData = {
-  name: string;
-  event_id?: number | null;
-  track_id?: number | null;
-};
-
-type AddMemberData = {
-  user_id: number;
-  role?: string;
-};
+import { findUserByEmail } from '../api/teams';
+import { useTeams, useCreateTeam, useAddTeamMember, useRemoveTeamMember } from '../hooks/useTeams';
+import { useEvents } from '../hooks/useEvents';
+import { useTracks } from '../hooks/useTracks';
+import { useProfile } from '../hooks/useProfile';
+import type { Team } from '../types';
 
 export default function TeamsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -62,85 +20,32 @@ export default function TeamsPage() {
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [newMemberRole, setNewMemberRole] = useState('member');
 
-  const queryClient = useQueryClient();
+  const { data: currentUser } = useProfile();
+  const isAdmin = currentUser?.role === 'admin';
 
-  // Загружаем команды
-  const { data: teams = [], isLoading: teamsLoading, error: teamsError } = useQuery<Team[]>({
-    queryKey: ['teams', selectedEventId],
-    queryFn: async () => {
-      let url = '/teams';
-      if (selectedEventId) {
-        url += `?event_id=${selectedEventId}`;
-      }
-      const { data } = await apiClient.get(url);
-      return data;
-    },
-  });
+  const { data: teams = [], isLoading: teamsLoading, error: teamsError } = useTeams(selectedEventId || undefined);
+  const { data: events = [] } = useEvents();
+  const { data: tracks = [] } = useTracks();
 
-  // Загружаем мероприятия для фильтра
-  const { data: events = [] } = useQuery<Event[]>({
-    queryKey: ['events'],
-    queryFn: async () => {
-      const { data } = await apiClient.get('/events');
-      return data;
-    },
-  });
+  const createTeamMutation = useCreateTeam();
+  const addMemberMutation = useAddTeamMember();
+  const removeMemberMutation = useRemoveTeamMember();
 
-  // Загружаем треки
-  const { data: tracks = [] } = useQuery<Track[]>({
-    queryKey: ['tracks'],
-    queryFn: async () => {
-      const { data } = await apiClient.get('/tracks');
-      return data;
-    },
-  });
-
-  // Создание команды
-  const createTeamMutation = useMutation({
-    mutationFn: async (data: CreateTeamData) => {
-      const { data: response } = await apiClient.post('/teams', data);
-      return response;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['teams'] });
-      setShowCreateModal(false);
-      setNewTeamName('');
-      setNewTeamEventId('');
-      setNewTeamTrackId('');
-    },
-  });
-
-  // Добавление участника
-  const addMemberMutation = useMutation({
-    mutationFn: async ({ teamId, data }: { teamId: number; data: AddMemberData }) => {
-      const { data: response } = await apiClient.post(`/teams/${teamId}/members`, data);
-      return response;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['teams'] });
-      setShowAddMemberModal(false);
-      setNewMemberEmail('');
-      setNewMemberRole('member');
-      setSelectedTeam(null);
-    },
-  });
-
-  // Удаление участника
-  const removeMemberMutation = useMutation({
-    mutationFn: async ({ teamId, userId }: { teamId: number; userId: number }) => {
-      await apiClient.delete(`/teams/${teamId}/members/${userId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['teams'] });
-    },
-  });
-
-  // Фильтрация команд по поиску
   const filteredTeams = teams.filter((team) =>
     team.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleCreateTeam = (e: React.FormEvent) => {
+  const getEventName = (eventId: number | null | undefined) => {
+    if (!eventId) return null;
+    return events.find((e) => e.id === eventId)?.title ?? `Мероприятие #${eventId}`;
+  };
+
+  const getTrackName = (trackId: number | null | undefined) => {
+    if (!trackId) return null;
+    return tracks.find((t) => t.id === trackId)?.name ?? `Трек #${trackId}`;
+  };
+
+  const handleCreateTeam = (e: React.SyntheticEvent) => {
     e.preventDefault();
     createTeamMutation.mutate({
       name: newTeamName,
@@ -149,24 +54,23 @@ export default function TeamsPage() {
     });
   };
 
-  const handleAddMember = (e: React.FormEvent) => {
+  const handleAddMember = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!selectedTeam) return;
-
-    // Сначала нужно найти пользователя по email
-    // Для упрощения используем ID, но в реальности нужно сначала найти пользователя
-    apiClient.get(`/users?email=${newMemberEmail}`).then(({ data }) => {
-      if (data && data[0]) {
-        addMemberMutation.mutate({
-          teamId: selectedTeam.id,
-          data: { user_id: data[0].id, role: newMemberRole },
-        });
-      } else {
+    try {
+      const users = await findUserByEmail(newMemberEmail);
+      if (!users[0]) {
         alert('Пользователь с таким email не найден');
+        return;
       }
-    }).catch(() => {
+      addMemberMutation.mutate({
+        teamId: selectedTeam.id,
+        user_id: users[0].id,
+        role: newMemberRole as 'captain' | 'member',
+      });
+    } catch {
       alert('Ошибка при поиске пользователя');
-    });
+    }
   };
 
   if (teamsError) {
@@ -273,14 +177,14 @@ export default function TeamsPage() {
                 {team.event_id && (
                   <div className="mb-3 flex items-center gap-2 text-sm text-slate-500">
                     <span>📅</span>
-                    <span>Мероприятие ID: {team.event_id}</span>
+                    <span className="truncate">{getEventName(team.event_id)}</span>
                   </div>
                 )}
 
                 {team.track_id && (
                   <div className="mb-4 flex items-center gap-2 text-sm text-slate-500">
                     <span>🎯</span>
-                    <span>Трек ID: {team.track_id}</span>
+                    <span className="truncate">{getTrackName(team.track_id)}</span>
                   </div>
                 )}
 
@@ -302,16 +206,16 @@ export default function TeamsPage() {
                               капитан
                             </span>
                           )}
-                          {member.role !== 'captain' && (
+                          {member.role !== 'captain' && (isAdmin || team.captain_id === currentUser?.id) && (
                             <button
                               onClick={() => {
                                 if (confirm('Удалить участника из команды?')) {
                                   removeMemberMutation.mutate({ teamId: team.id, userId: member.user_id });
                                 }
                               }}
-                              className="text-red-400 hover:text-red-600 text-xs"
+                              className="px-2 py-0.5 rounded-lg bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 text-xs font-medium transition-colors"
                             >
-                              удалить
+                              Удалить
                             </button>
                           )}
                         </li>
@@ -325,15 +229,17 @@ export default function TeamsPage() {
 
               {/* Кнопки действий */}
               <div className="px-6 pb-6 flex gap-3">
-                <button
-                  onClick={() => {
-                    setSelectedTeam(team);
-                    setShowAddMemberModal(true);
-                  }}
-                  className="flex-1 px-4 py-2 rounded-xl border border-indigo-200 text-indigo-600 font-medium hover:bg-indigo-50 transition-all"
-                >
-                  + Добавить участника
-                </button>
+                {(isAdmin || team.captain_id === currentUser?.id) && (
+                  <button
+                    onClick={() => {
+                      setSelectedTeam(team);
+                      setShowAddMemberModal(true);
+                    }}
+                    className="flex-1 px-4 py-2 rounded-xl border border-indigo-200 text-indigo-600 font-medium hover:bg-indigo-50 transition-all"
+                  >
+                    + Добавить участника
+                  </button>
+                )}
                 <Link
                   to={`/teams/${team.id}`}
                   className="flex-1 px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-medium hover:bg-slate-200 transition-all text-center"

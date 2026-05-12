@@ -1,96 +1,41 @@
 // src/pages/ProfilePage.tsx
 import { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { logout } from '../store/authSlice';
-import { apiClient } from '../api/client';
-import type { RootState } from '../store/store';
+import { useProfile, useUserStats, useUpdateProfile } from '../hooks/useProfile';
 
-// Типизация
-type User = {
-  id: number;
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
-  role: string;
-  created_at: string;
-};
-
-type UserStats = {
-  events_count: number;
-  teams_count: number;
-  rating: number;
-};
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const dispatch = useDispatch();
-  const reduxUser = useSelector((state: RootState) => state.auth.user);
-  
 
-  
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    firstName: reduxUser?.first_name || '',
-    lastName: reduxUser?.last_name || '',
-    email: reduxUser?.email || '',
-  });
-  
+  const [formData, setFormData] = useState({ firstName: '', lastName: '' });
+
   const [notifications, setNotifications] = useState({
     email: true,
     news: true,
   });
 
-  // Загрузка данных пользователя с бэкенда
-  const { data: user, isLoading: userLoading, error: userError } = useQuery<User>({
-    queryKey: ['auth', 'me'],
-    queryFn: async () => {
-      const { data } = await apiClient.get('/auth/me');
-      return data as User;
-    },
-  });
+  const { data: user, isLoading: userLoading, error: userError } = useProfile();
+  const { data: stats, isLoading: statsLoading } = useUserStats();
+  const updateProfileMutation = useUpdateProfile();
 
-  // Загрузка статистики пользователя
-  const { data: stats, isLoading: statsLoading } = useQuery<UserStats>({
-    queryKey: ['user', 'stats'],
-    queryFn: async () => {
-      const [eventsRes, teamsRes] = await Promise.all([
-        apiClient.get('/users/events-count'),
-        apiClient.get('/users/teams-count'),
-      ]);
-      return {
-        events_count: eventsRes.data.count,
-        teams_count: teamsRes.data.count,
-        rating: 120,
-      } as UserStats;
-    },
-  });
-
-  // Обновление профиля
-  const updateProfileMutation = useMutation({
-    mutationFn: async (data: { first_name: string; last_name: string }) => {
-      const { data: response } = await apiClient.put('/auth/profile', data);
-      return response;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
-      setIsEditing(false);
-    },
-  });
+  const queryClient = useQueryClient();
 
   const handleLogout = () => {
+    queryClient.removeQueries({ queryKey: ['auth', 'me'] });
     dispatch(logout());
     navigate('/login', { replace: true });
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    updateProfileMutation.mutate({
-      first_name: formData.firstName,
-      last_name: formData.lastName,
-    });
+  const handleSave = () => {
+    updateProfileMutation.mutate(
+      { first_name: formData.firstName, last_name: formData.lastName },
+      { onSuccess: () => setIsEditing(false) },
+    );
   };
 
   if (userLoading) {
@@ -129,7 +74,10 @@ export default function ProfilePage() {
         <div className="flex gap-3">
           {!isEditing ? (
             <button 
-              onClick={() => setIsEditing(true)}
+              onClick={() => {
+                setFormData({ firstName: user?.first_name ?? '', lastName: user?.last_name ?? '' });
+                setIsEditing(true);
+              }}
               className="px-6 py-3 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/10"
             >
               Редактировать
@@ -142,7 +90,6 @@ export default function ProfilePage() {
                   setFormData({
                     firstName: user?.first_name || '',
                     lastName: user?.last_name || '',
-                    email: user?.email || '',
                   });
                 }}
                 className="px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-50 transition-colors"
@@ -177,7 +124,7 @@ export default function ProfilePage() {
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Имя</label>
                 <input
                   type="text"
-                  value={formData.firstName}
+                  value={isEditing ? formData.firstName : (user?.first_name ?? '')}
                   onChange={(e) => setFormData({...formData, firstName: e.target.value})}
                   disabled={!isEditing}
                   className="w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed"
@@ -187,7 +134,7 @@ export default function ProfilePage() {
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Фамилия</label>
                 <input
                   type="text"
-                  value={formData.lastName}
+                  value={isEditing ? formData.lastName : (user?.last_name ?? '')}
                   onChange={(e) => setFormData({...formData, lastName: e.target.value})}
                   disabled={!isEditing}
                   className="w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed"
@@ -199,7 +146,7 @@ export default function ProfilePage() {
               <label className="block text-sm font-semibold text-slate-700 mb-2">Email адрес</label>
               <input
                 type="email"
-                value={formData.email}
+                value={user?.email ?? ''}
                 disabled
                 className="w-full px-4 py-3 rounded-xl bg-slate-100 border-transparent text-slate-500 cursor-not-allowed"
               />

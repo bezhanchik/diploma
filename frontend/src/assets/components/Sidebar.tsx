@@ -1,16 +1,15 @@
 // src/assets/components/Sidebar.tsx
 import { NavLink, Link } from "react-router-dom";
 import { useState } from "react";
-import { useAdminCheck } from "../../api/hooks";
-import type { RootState } from '../../store/store'; // ✅ Типы стора
-import { useSelector } from 'react-redux'; // ✅ Добавлен useSelector
+import { useSelector } from 'react-redux';
+import { useProfile } from '../../hooks/useProfile';
+import type { RootState } from '../../store/store';
 
 function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
-  const { data: adminData } = useAdminCheck();
-  const isAdmin = adminData?.is_admin || false;
-  const user = useSelector((state: RootState) => state.auth.user);
   const token = useSelector((state: RootState) => state.auth.token);
+  const { data: user } = useProfile();
+  const isAdmin = user?.role === 'admin';
 
 
   // Базовые стили для ссылок
@@ -132,30 +131,34 @@ function Sidebar() {
           )}
         </nav>
 
-        {/* ✅ Футер сайдбара с реактивной проверкой авторизации */}
+        {/* Футер сайдбара */}
         <div className="mt-auto p-4 border-t border-slate-800">
-          {token ? ( // Проверяем токен из Redux, а не isAuth()
-            <Link 
-              to="/profile" 
+          {token ? (
+            <Link
+              to="/profile"
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-800 transition-colors group"
             >
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-md group-hover:scale-105 transition-transform">
-                {user?.first_name?.charAt(0).toUpperCase() || 'U'}
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-md group-hover:scale-105 transition-transform bg-gradient-to-br ${isAdmin ? 'from-purple-500 to-indigo-600' : 'from-indigo-500 to-purple-600'}`}>
+                {user?.first_name?.charAt(0).toUpperCase() ?? user?.email?.charAt(0).toUpperCase() ?? 'U'}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white truncate">
-                  {user?.first_name || 'Пользователь'}
+                  {user?.first_name
+                    ? `${user.first_name} ${user.last_name ?? ''}`.trim()
+                    : user?.email ?? 'Пользователь'}
                 </p>
-                <p className="text-xs text-slate-500 truncate">Мой профиль</p>
+                <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full mt-0.5 ${isAdmin ? 'bg-purple-500/20 text-purple-300' : 'bg-slate-700 text-slate-400'}`}>
+                  {isAdmin ? 'Администратор' : 'Пользователь'}
+                </span>
               </div>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-500 group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-500 group-hover:text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </Link>
           ) : (
-             <Link 
-              to="/login" 
+            <Link
+              to="/login"
               onClick={() => setIsOpen(false)}
               className="flex items-center justify-center gap-2 p-3 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition-colors"
             >

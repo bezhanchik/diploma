@@ -1,368 +1,288 @@
-// src/pages/admin/EventsTab.tsx
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useEvents, useCreateEvent, useUpdateEvent, useDeleteEvent } from '../../hooks/useEvents';
+import type { Event, EventStatus } from '../../types';
+import ConfirmModal from '../../assets/components/ConfirmModal';
 
-type EventItem = {
-  id: number;
-  title: string;
-  status: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  organization_id: number | null;
-  created_at: string;
+const STATUS_LABEL: Record<string, string> = {
+  draft: 'Черновик',
+  active: 'Активно',
+  completed: 'Завершено',
+  cancelled: 'Отменено',
 };
 
-type EventFormData = {
+const STATUS_STYLE: Record<string, string> = {
+  active: 'bg-green-50 text-green-700 border-green-200',
+  completed: 'bg-slate-100 text-slate-500 border-slate-200',
+  cancelled: 'bg-red-50 text-red-600 border-red-200',
+  draft: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+};
+
+const fmt = (d: string | null | undefined) =>
+  d ? new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+
+type EventFormState = {
   title: string;
   status: string;
   start_date: string;
   end_date: string;
-  organization_id: number | null;
 };
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const emptyForm = (): EventFormState => ({ title: '', status: 'draft', start_date: '', end_date: '' });
 
-export default function EventsTab() {
-  const [events, setEvents] = useState<EventItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [page, setPage] = useState(1);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState<EventFormData>({
-    title: '',
-    status: 'draft',
-    start_date: '',
-    end_date: '',
-    organization_id: null,
-  });
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const limit = 10;
-
-  const loadEvents = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(
-        `${API_URL}/events/?skip=${(page - 1) * limit}&limit=${limit}`,
-        {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }
-      );
-      if (!response.ok) throw new Error('Не удалось загрузить мероприятия');
-      const data = await response.json();
-      setEvents(data);
-    } catch (e: any) {
-      setError(e.message || 'Ошибка загрузки');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadEvents();
-  }, [page]);
-
-  const validateForm = (): boolean => {
-    const errors: Record<string, string> = {};
-    
-    // Валидация названия
-    if (!formData.title.trim()) {
-      errors.title = 'Название мероприятия обязательно';
-    } else if (formData.title.length < 3) {
-      errors.title = 'Название должно содержать минимум 3 символа';
-    } else if (formData.title.length > 200) {
-      errors.title = 'Название не должно превышать 200 символов';
-    }
-    
-    // Валидация дат
-    if (formData.start_date && formData.end_date) {
-      const start = new Date(formData.start_date);
-      const end = new Date(formData.end_date);
-      
-      if (start > end) {
-        errors.end_date = 'Дата окончания не может быть раньше даты начала';
-      }
-    }
-    
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleCreateEvent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
-    setIsSubmitting(true);
-    setError('');
-    
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/events/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title: formData.title.trim(),
-          status: formData.status,
-          start_date: formData.start_date || null,
-          end_date: formData.end_date || null,
-          organization_id: formData.organization_id,
-        }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Не удалось создать мероприятие');
-      }
-      
-      // Успешное создание
-      setIsModalOpen(false);
-      resetForm();
-      loadEvents(); // Перезагружаем список
-    } catch (e: any) {
-      setError(e.message || 'Ошибка создания мероприятия');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm('Удалить мероприятие?')) return;
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/events/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error('Не удалось удалить');
-      loadEvents(); // перезагружаем список
-    } catch (e: any) {
-      setError(e.message || 'Ошибка удаления');
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      title: '',
-      status: 'draft',
-      start_date: '',
-      end_date: '',
-      organization_id: null,
-    });
-    setFormErrors({});
-  };
-
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleDateString('ru-RU');
-  };
-
-  if (loading && events.length === 0) {
-    return <div className="p-6">Загрузка...</div>;
-  }
+function EventFormFields({
+  form,
+  onChange,
+  error,
+}: {
+  form: EventFormState;
+  onChange: (f: EventFormState) => void;
+  error?: string;
+}) {
+  const set = (key: keyof EventFormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    onChange({ ...form, [key]: e.target.value });
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Мероприятия</h2>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-slate-900 text-white px-4 py-2 rounded-xl hover:bg-slate-800"
-        >
-          + Создать
-        </button>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="sm:col-span-2">
+        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+          Название *
+        </label>
+        <input
+          type="text"
+          value={form.title}
+          onChange={set('title')}
+          placeholder="Название мероприятия"
+          className={`w-full px-4 py-2.5 rounded-xl border ${error ? 'border-red-400' : 'border-slate-200'} focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all`}
+        />
+        {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
       </div>
 
-      {error && <p className="text-red-500 bg-red-50 p-3 rounded-lg">{error}</p>}
+      <div>
+        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+          Статус
+        </label>
+        <select
+          value={form.status}
+          onChange={set('status')}
+          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-white"
+        >
+          <option value="draft">Черновик</option>
+          <option value="active">Активно</option>
+          <option value="completed">Завершено</option>
+          <option value="cancelled">Отменено</option>
+        </select>
+      </div>
 
-      <div className="bg-white rounded-2xl shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="px-4 py-3 text-left font-semibold text-slate-700">Название</th>
-              <th className="px-4 py-3 text-left font-semibold text-slate-700">Статус</th>
-              <th className="px-4 py-3 text-left font-semibold text-slate-700">Начало</th>
-              <th className="px-4 py-3 text-left font-semibold text-slate-700">Окончание</th>
-              <th className="px-4 py-3 text-right font-semibold text-slate-700">Действия</th>
-            </tr>
-          </thead>
-          <tbody>
-            {events.map((event) => (
-              <tr key={event.id} className="border-t hover:bg-slate-50">
-                <td className="px-4 py-3 font-medium">{event.title}</td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-1 rounded-full text-xs ${
-                    event.status === 'active' ? 'bg-green-100 text-green-700' :
-                    event.status === 'draft' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-slate-100 text-slate-600'
-                  }`}>
-                    {event.status === 'active' ? 'Активно' : 
-                     event.status === 'draft' ? 'Черновик' : 
-                     event.status || '—'}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-slate-600">{formatDate(event.start_date)}</td>
-                <td className="px-4 py-3 text-slate-600">{formatDate(event.end_date)}</td>
-                <td className="px-4 py-3 text-right space-x-2">
-                  <button className="px-3 py-1 text-sm border rounded-lg hover:bg-slate-100">
-                    Редактировать
-                  </button>
-                  <button
-                    onClick={() => handleDelete(event.id)}
-                    className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
-                  >
-                    Удалить
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div />
 
-        {events.length === 0 && !loading && (
-          <p className="text-center py-8 text-slate-500">
-            Мероприятий пока нет
-          </p>
+      <div>
+        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+          Дата начала
+        </label>
+        <input
+          type="datetime-local"
+          value={form.start_date}
+          onChange={set('start_date')}
+          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
+        />
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+          Дата окончания
+        </label>
+        <input
+          type="datetime-local"
+          value={form.end_date}
+          onChange={set('end_date')}
+          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
+        />
+      </div>
+    </div>
+  );
+}
+
+export default function EventsTab() {
+  const [form, setForm] = useState<EventFormState>(emptyForm());
+  const [formError, setFormError] = useState('');
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [editEvent, setEditEvent] = useState<Event | null>(null);
+  const [editForm, setEditForm] = useState<EventFormState>(emptyForm());
+
+  const { data: events = [], isLoading } = useEvents();
+  const createMutation = useCreateEvent();
+  const deleteMutation = useDeleteEvent();
+  const updateMutation = useUpdateEvent();
+
+  const statusCounts = events.reduce<Record<string, number>>((acc, e) => {
+    const s = e.status ?? 'unknown';
+    acc[s] = (acc[s] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const handleCreate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.title.trim()) { setFormError('Название обязательно'); return; }
+    if (form.title.trim().length < 3) { setFormError('Минимум 3 символа'); return; }
+    setFormError('');
+    createMutation.mutate(
+      {
+        title: form.title.trim(),
+        status: form.status as EventStatus,
+        start_date: form.start_date || undefined,
+        end_date: form.end_date || undefined,
+      },
+      { onSuccess: () => setForm(emptyForm()) },
+    );
+  };
+
+  const openEdit = (event: Event) => {
+    setEditEvent(event);
+    setEditForm({
+      title: event.title,
+      status: event.status ?? 'draft',
+      start_date: event.start_date ? event.start_date.slice(0, 16) : '',
+      end_date: event.end_date ? event.end_date.slice(0, 16) : '',
+    });
+  };
+
+  const handleUpdate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editEvent) return;
+    updateMutation.mutate(
+      {
+        id: editEvent.id,
+        title: editForm.title.trim(),
+        status: editForm.status as EventStatus,
+        start_date: editForm.start_date || undefined,
+        end_date: editForm.end_date || undefined,
+      },
+      { onSuccess: () => setEditEvent(null) },
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Счётчики по статусам */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {(['draft', 'active', 'completed', 'cancelled'] as const).map((s) => (
+          <div key={s} className="bg-white rounded-2xl border border-slate-100 p-4 text-center shadow-sm">
+            <div className="text-2xl font-black text-slate-900">{statusCounts[s] ?? 0}</div>
+            <div className={`mt-1 inline-block px-2 py-0.5 rounded-full text-xs font-semibold border ${STATUS_STYLE[s]}`}>
+              {STATUS_LABEL[s]}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Форма создания */}
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+        <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <span className="w-1.5 h-5 bg-indigo-500 rounded-full" />
+          Новое мероприятие
+        </h3>
+        <form onSubmit={handleCreate} className="space-y-4">
+          <EventFormFields form={form} onChange={setForm} error={formError} />
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={createMutation.isPending}
+              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-all shadow-sm disabled:opacity-50"
+            >
+              {createMutation.isPending ? 'Создание...' : '+ Создать'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Таблица мероприятий */}
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h3 className="font-bold text-slate-900">Все мероприятия</h3>
+          <span className="text-sm text-slate-400">{events.length} шт.</span>
+        </div>
+
+        {isLoading ? (
+          <div className="p-6 space-y-3">
+            {[1, 2, 3].map((i) => <div key={i} className="h-12 bg-slate-100 rounded-xl animate-pulse" />)}
+          </div>
+        ) : events.length === 0 ? (
+          <p className="text-center py-12 text-slate-400">Нет мероприятий</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide bg-slate-50">
+                  <th className="px-6 py-3">Название</th>
+                  <th className="px-4 py-3">Статус</th>
+                  <th className="px-4 py-3">Начало</th>
+                  <th className="px-4 py-3">Конец</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {events.map((event) => (
+                  <tr key={event.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-6 py-3 font-medium text-slate-900">{event.title}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${STATUS_STYLE[event.status ?? ''] ?? 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                        {STATUS_LABEL[event.status ?? ''] ?? event.status ?? '—'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">{fmt(event.start_date)}</td>
+                    <td className="px-4 py-3 text-slate-500">{fmt(event.end_date)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 justify-end">
+                        <button
+                          onClick={() => openEdit(event)}
+                          className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-medium transition-colors"
+                        >
+                          Изменить
+                        </button>
+                        <button
+                          onClick={() => setDeleteId(event.id)}
+                          className="px-3 py-1.5 rounded-lg bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 text-xs font-medium transition-colors"
+                        >
+                          Удалить
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
-      {/* Пагинация */}
-      <div className="flex justify-between items-center">
-        <button
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page === 1}
-          className="px-4 py-2 border rounded-lg disabled:opacity-50 hover:bg-slate-50"
-        >
-          ← Назад
-        </button>
-        <span className="text-slate-600">Страница {page}</span>
-        <button
-          onClick={() => setPage((p) => p + 1)}
-          disabled={events.length < limit}
-          className="px-4 py-2 border rounded-lg disabled:opacity-50 hover:bg-slate-50"
-        >
-          Вперёд →
-        </button>
-      </div>
-
-      {/* Модальное окно создания мероприятия */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold">Создание мероприятия</h3>
-              <button
-                onClick={() => {
-                  setIsModalOpen(false);
-                  resetForm();
-                }}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateEvent} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Название *
-                </label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => {
-                    setFormData({ ...formData, title: e.target.value });
-                    if (formErrors.title) delete formErrors.title;
-                  }}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 ${
-                    formErrors.title ? 'border-red-500' : 'border-slate-300'
-                  }`}
-                  placeholder="Введите название мероприятия"
-                />
-                {formErrors.title && (
-                  <p className="text-red-500 text-xs mt-1">{formErrors.title}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Статус
-                </label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400"
-                >
-                  <option value="draft">Черновик</option>
-                  <option value="active">Активно</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Дата начала
-                </label>
-                <input
-                  type="datetime-local"
-                  value={formData.start_date}
-                  onChange={(e) => {
-                    setFormData({ ...formData, start_date: e.target.value });
-                    if (formErrors.end_date) delete formErrors.end_date;
-                  }}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Дата окончания
-                </label>
-                <input
-                  type="datetime-local"
-                  value={formData.end_date}
-                  onChange={(e) => {
-                    setFormData({ ...formData, end_date: e.target.value });
-                    if (formErrors.end_date) delete formErrors.end_date;
-                  }}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 ${
-                    formErrors.end_date ? 'border-red-500' : 'border-slate-300'
-                  }`}
-                />
-                {formErrors.end_date && (
-                  <p className="text-red-500 text-xs mt-1">{formErrors.end_date}</p>
-                )}
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsModalOpen(false);
-                    resetForm();
-                  }}
-                  className="flex-1 px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50"
-                >
+      {/* Модалка редактирования */}
+      {editEvent && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setEditEvent(null)}>
+          <div className="bg-white rounded-3xl p-6 w-full max-w-lg mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-bold text-slate-900 mb-5">Редактировать мероприятие</h2>
+            <form onSubmit={handleUpdate} className="space-y-4">
+              <EventFormFields form={editForm} onChange={setEditForm} />
+              <div className="flex gap-3 justify-end pt-2">
+                <button type="button" onClick={() => setEditEvent(null)} className="px-5 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium">
                   Отмена
                 </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex-1 bg-slate-900 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? 'Создание...' : 'Создать'}
+                <button type="submit" disabled={updateMutation.isPending} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50">
+                  {updateMutation.isPending ? 'Сохранение...' : 'Сохранить'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={deleteId !== null}
+        onClose={() => setDeleteId(null)}
+        onConfirm={() => deleteId && deleteMutation.mutate(deleteId, { onSuccess: () => setDeleteId(null) })}
+        title="Удалить мероприятие"
+        message="Вы уверены? Это действие нельзя отменить."
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }

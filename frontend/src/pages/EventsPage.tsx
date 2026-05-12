@@ -1,36 +1,36 @@
 // src/pages/EventsPage.tsx
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../api/client';
+import { useEvents } from '../hooks/useEvents';
+import type { EventStatus } from '../types';
 
-type Event = {
-  id: number;
-  title: string;
-  status: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  description?: string; // Если есть поле описания
+const STATUS_LABEL: Record<string, string> = {
+  draft: 'Черновик',
+  active: 'Идёт регистрация',
+  completed: 'Завершено',
+  cancelled: 'Отменено',
+  IN_PROGRESS: 'В процессе',
+  REGISTRATION_OPEN: 'Регистрация открыта',
+  REGISTRATION_CLOSED: 'Регистрация закрыта',
+  PLANNING: 'Планирование',
+};
+
+const STATUS_STYLE: Record<string, string> = {
+  active: 'bg-green-50 text-green-700 border-green-200',
+  REGISTRATION_OPEN: 'bg-green-50 text-green-700 border-green-200',
+  IN_PROGRESS: 'bg-blue-50 text-blue-700 border-blue-200',
+  completed: 'bg-slate-100 text-slate-500 border-slate-200',
+  REGISTRATION_CLOSED: 'bg-slate-100 text-slate-500 border-slate-200',
+  cancelled: 'bg-red-50 text-red-600 border-red-200',
+  draft: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+  PLANNING: 'bg-yellow-50 text-yellow-700 border-yellow-200',
 };
 
 export default function EventsPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<EventStatus | ''>('');
 
-  // Загружаем все мероприятия (лимит побольше, так как это общая страница)
-  const { data: events = [], isLoading } = useQuery<Event[]>({
-    queryKey: ['all-events', statusFilter], // Перезапрашиваем при смене фильтра
-    queryFn: async () => {
-      // Формируем URL с параметрами
-      let url = '/events?limit=50';
-      if (statusFilter) {
-        url += `&status=${statusFilter}`;
-      }
-      const { data } = await apiClient.get(url);
-      return data;
-    },
-    staleTime: 1 * 60 * 1000, // Кешируем на 1 минуту
-  });
+  const { data: events = [], isLoading } = useEvents(statusFilter);
 
   // Фильтрация по названию на клиенте (для быстрого отклика)
   const filteredEvents = events.filter((event) =>
@@ -103,15 +103,11 @@ export default function EventsPage() {
             >
               <div className="flex justify-between items-start mb-4">
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
-                    event.status === 'active'
-                      ? 'bg-green-50 text-green-700 border border-green-100'
-                      : event.status === 'completed'
-                      ? 'bg-slate-100 text-slate-600 border border-slate-200'
-                      : 'bg-yellow-50 text-yellow-700 border border-yellow-100'
+                  className={`px-3 py-1 rounded-full text-xs font-bold tracking-wide border ${
+                    STATUS_STYLE[event.status ?? ''] ?? 'bg-slate-100 text-slate-500 border-slate-200'
                   }`}
                 >
-                  {event.status === 'active' ? 'Идет регистрация' : event.status || 'Статус'}
+                  {STATUS_LABEL[event.status ?? ''] ?? event.status ?? 'Статус'}
                 </span>
                 <span className="text-sm text-slate-400 font-medium">
                   {formatDate(event.start_date)}

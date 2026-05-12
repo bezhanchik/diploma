@@ -1,33 +1,8 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { loginUser } from '../store/authThunks';
-import type { AppDispatch } from '../store/store';
-
-const API_URL = 'http://127.0.0.1:8000';
+import { Link } from 'react-router-dom';
+import { useLoginForm } from '../hooks/useLoginForm';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const dispatch = useDispatch<AppDispatch>();
-  const navigate = useNavigate();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    try {
-      await dispatch(loginUser({ email, password })).unwrap();
-      navigate('/', { replace: true });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка входа');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { email, setEmail, password, setPassword, error, isLoading, handleSubmit } = useLoginForm();
 
   return (
     <div className="max-w-md mx-auto mt-12">

@@ -15,6 +15,11 @@ import AdminRoute from './assets/components/AdminRoute';
 import CasesPage from './pages/CasesPage';
 import ProfilePage from './pages/ProfilePage';
 import TeamsPage from './pages/TeamsPage';
+import SchedulePage from './pages/SchedulePage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import EventDetailPage from './pages/EventDetailPage';
+import CaseDetailPage from './pages/CaseDetailPage';
+import TeamDetailPage from './pages/TeamDetailPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,14 +30,6 @@ const queryClient = new QueryClient({
   },
 });
 
-
-function SchedulePage() {
-  return <h2 className="text-2xl font-bold">Расписание</h2>;
-}
-
-function AnalyticsPage() {
-  return <h2 className="text-2xl font-bold">Аналитика</h2>;
-}
 
 function NotFoundPage() {
   return (
@@ -49,8 +46,11 @@ function AppRoutes() {
       <Route element={<Layout />}>
         <Route index element={<HomePage />} /> {/* Главная здесь */}
         <Route path="events" element={<EventsPage />} />
+        <Route path="events/:id" element={<EventDetailPage />} />
         <Route path="teams" element={<TeamsPage />} />
+        <Route path="teams/:id" element={<TeamDetailPage />} />
         <Route path="cases" element={<CasesPage />} />
+        <Route path="cases/:id" element={<CaseDetailPage />} />
         <Route path="schedule" element={<SchedulePage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route 

@@ -87,7 +87,8 @@ class DifficultyEnum(str, enum.Enum):
 class TrackOut(BaseModel):
     id: int
     name: str
-    
+    event_id: Optional[int] = None
+
     class Config:
         from_attributes = True
 
@@ -150,3 +151,79 @@ class TeamUpdate(BaseModel):
 class AddTeamMember(BaseModel):
     user_id: int
     role: Optional[str] = "member"
+
+
+# Detail Schemas
+
+class TrackWithChallengesOut(BaseModel):
+    id: int
+    name: str
+    challenges: List[ChallengeOut] = []
+
+    class Config:
+        from_attributes = True
+
+
+class TeamBriefOut(BaseModel):
+    id: int
+    name: str
+    captain: Optional[UserOut] = None
+    members_count: int = 0
+
+
+class EventDetailOut(BaseModel):
+    id: int
+    title: str
+    status: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    organization_id: Optional[int] = None
+    tracks: List[TrackWithChallengesOut] = []
+    teams: List[TeamBriefOut] = []
+    teams_count: int = 0
+    challenges_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+class ChallengeDetailOut(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    track_id: int
+    track_name: Optional[str] = None
+    related: List[ChallengeOut] = []
+
+
+# Schedule Schemas
+class ScheduleEventOut(BaseModel):
+    id: int
+    title: str
+    status: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    teams_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+# Analytics Schemas
+class AnalyticsSummary(BaseModel):
+    users_count: int
+    events_count: int
+    teams_count: int
+    challenges_count: int
+
+
+class EventStatusStat(BaseModel):
+    status: str
+    count: int
+
+
+class TopEventOut(BaseModel):
+    id: int
+    title: str
+    status: Optional[str] = None
+    teams_count: int

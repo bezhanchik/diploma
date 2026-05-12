@@ -1,37 +1,44 @@
 // src/assets/components/Header.tsx
 import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { isAuth, logout } from '../../shared/auth';
-import type { RootState } from '../../store/store';
+import { useDispatch } from 'react-redux';
+import { useQueryClient } from '@tanstack/react-query';
+import { isAuth } from '../../shared/auth';
+import { logout } from '../../store/authSlice';
+import { useProfile } from '../../hooks/useProfile';
+
 
 function Header() {
   const navigate = useNavigate();
-  const user = useSelector((state: RootState) => state.auth.user); // Предположим, что у тебя есть user в store
+  const dispatch = useDispatch();
+  const queryClient = useQueryClient();
+  const { data: user } = useProfile();
 
   function handleAvatarClick() {
     if (isAuth()) {
-      navigate('/profile'); // Или /events, если профиля нет
+      navigate('/profile');
     } else {
       navigate('/login');
     }
   }
 
   function handleLogout() {
-    logout();
+    queryClient.removeQueries({ queryKey: ['auth', 'me'] });
+    dispatch(logout());
     navigate('/login', { replace: true });
   }
 
-  // Получаем первую букву имени или email для аватарки
   const getInitials = () => {
     if (user?.first_name) return user.first_name.charAt(0).toUpperCase();
     if (user?.email) return user.email.charAt(0).toUpperCase();
     return 'U';
   };
 
-  const userName = user?.first_name || user?.email?.split('@')[0] || 'Пользователь';
+  const userName = user?.first_name
+    ? `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}`
+    : user?.email?.split('@')[0] || 'Пользователь';
 
   return (
-    <header className="flex items-center justify-between py-4 px-6 border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-10">
+    <header className="flex items-center justify-between py-4 pl-16 pr-6 md:px-6 border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-10">
       
       {/* Левая часть: Приветствие + Имя */}
       <div className="flex items-center gap-3">

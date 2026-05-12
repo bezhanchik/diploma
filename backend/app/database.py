@@ -3,10 +3,13 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-# Берем URL из переменных окружения с fallback для локальной разработки
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
-    "postgresql+psycopg2://postgres:hajime2022@localhost:5432/Hackathons"
+DATABASE_URL = (
+    f"postgresql+psycopg2://"
+    f"{os.getenv('DB_USER', 'postgres')}:"
+    f"{os.getenv('DB_PASS', 'postgres')}@"
+    f"{os.getenv('DB_HOST', 'localhost')}:"
+    f"{os.getenv('DB_PORT', '5432')}/"
+    f"{os.getenv('DB_NAME', 'Hackathons')}"
 )
 
 engine = create_engine(DATABASE_URL, echo=False)

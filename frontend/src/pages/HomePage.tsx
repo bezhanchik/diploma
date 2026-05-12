@@ -1,29 +1,13 @@
 // src/pages/HomePage.tsx
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../api/client';
+import { useEvents } from '../hooks/useEvents';
 import type { RootState } from '../store/store';
-
-type Event = {
-  id: number;
-  title: string;
-  status: string | null;
-  start_date: string | null;
-  end_date: string | null;
-};
 
 export default function HomePage() {
   const token = useSelector((state: RootState) => state.auth.token);
 
-  const { data: events = [], isLoading } = useQuery<Event[]>({
-    queryKey: ['home-events'],
-    queryFn: async () => {
-      const { data } = await apiClient.get('/events?limit=6'); // Берем чуть больше для красоты сетки
-      return data;
-    },
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: events = [], isLoading } = useEvents();
 
   const upcomingEvents = events
     .filter((ev) => ev.status === 'active')

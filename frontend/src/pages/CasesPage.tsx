@@ -1,59 +1,29 @@
 // src/pages/CasesPage.tsx
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../api/client';
-
-// Типизация строго под текущую схему БД
-type Challenge = {
-  id: number;
-  title: string;
-  description: string | null;
-  track_id: number;
-  track_name?: string; // Придет с бэкенда или добавим вручную
-};
-
-type Track = {
-  id: number;
-  name: string;
-};
+import { useChallenges } from '../hooks/useChallenges';
+import { useTracks } from '../hooks/useTracks';
 
 export default function CasesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTrackId, setSelectedTrackId] = useState<number | ''>('');
 
-  // 1. Загружаем треки
-  const { data: tracks = [] } = useQuery<Track[]>({
-    queryKey: ['tracks'],
-    queryFn: async () => {
-      const { data } = await apiClient.get('/tracks');
-      return data;
-    },
-  });
-
-  // 2. Загружаем кейсы
-  const { data: challenges = [], isLoading, error } = useQuery<Challenge[]>({
-    queryKey: ['challenges', selectedTrackId],
-    queryFn: async () => {
-      let url = '/challenges?limit=50';
-      if (selectedTrackId) {
-        url += `&track_id=${selectedTrackId}`;
-      }
-      
-      const { data } = await apiClient.get(url);
-      
-      // "Подмешиваем" название трека для отображения, если бэкенд не делает JOIN
-      return data.map((c: Challenge) => ({
-        ...c,
-        track_name: tracks.find(t => t.id === c.track_id)?.name || `Трек #${c.track_id}`
-      }));
-    },
-  });
+  const { data: tracks = [] } = useTracks();
+  const { data: challenges = [], isLoading, error } = useChallenges(selectedTrackId || undefined);
 
   // Фильтрация по названию на клиенте
   const filteredChallenges = challenges.filter((challenge) =>
     challenge.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const TRACK_COLORS = [
+    'border-l-indigo-500',
+    'border-l-violet-500',
+    'border-l-cyan-500',
+    'border-l-emerald-500',
+    'border-l-orange-500',
+    'border-l-rose-500',
+  ];
 
   if (error) {
     return (
@@ -132,27 +102,27 @@ export default function CasesPage() {
             <Link
               key={challenge.id}
               to={`/cases/${challenge.id}`}
-              className="group bg-white rounded-3xl border border-slate-100 p-6 hover:shadow-xl hover:border-indigo-100 transition-all duration-300 flex flex-col h-full"
+              className={`group bg-white rounded-3xl border border-slate-100 border-l-4 ${TRACK_COLORS[(challenge.id - 1) % TRACK_COLORS.length]} p-6 hover:shadow-xl hover:border-indigo-100 transition-all duration-300 flex flex-col h-full`}
             >
               {/* Тег трека */}
-              <div className="mb-4">
-                <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100">
-                  {challenge.track_name}
+              <div className="mb-3">
+                <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
+                  {challenge.track_name ?? 'Без трека'}
                 </span>
               </div>
 
               {/* Заголовок */}
-              <h3 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-indigo-600 transition-colors line-clamp-2">
+              <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-indigo-600 transition-colors line-clamp-2">
                 {challenge.title}
               </h3>
-              
+
               {/* Описание */}
               <p className="text-slate-500 text-sm line-clamp-3 mb-4 flex-1">
                 {challenge.description || 'Описание задачи отсутствует.'}
               </p>
 
               {/* Кнопка */}
-              <div className="mt-auto pt-4 border-t border-slate-50 flex items-center text-indigo-600 font-bold text-sm group-hover:translate-x-1 transition-transform">
+              <div className="mt-auto pt-4 border-t border-slate-100 flex items-center text-indigo-600 font-bold text-sm group-hover:translate-x-1 transition-transform">
                 Подробнее о кейсе <span className="ml-2">→</span>
               </div>
             </Link>
