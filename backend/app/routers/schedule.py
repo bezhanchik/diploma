@@ -11,14 +11,18 @@ router = APIRouter(prefix="/schedule", tags=["Schedule"])
 
 @router.get("", response_model=list[ScheduleEventOut])
 def get_schedule(db: Session = Depends(get_db)):
+    from app.models import EventStatus
+    from sqlalchemy.orm import selectinload
     events = db.scalars(
-        select(Event).order_by(Event.start_date.nulls_last(), Event.id)
+        select(Event)
+        .options(selectinload(Event.status_obj))
+        .order_by(Event.start_date.nulls_last(), Event.id_event)
     ).all()
 
     result = []
     for event in events:
         teams_count = db.scalar(
-            select(func.count()).select_from(Team).where(Team.event_id == event.id)
+            select(func.count()).select_from(Team).where(Team.id_event == event.id_event)
         ) or 0
         result.append(ScheduleEventOut(
             id=event.id,

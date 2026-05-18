@@ -21,6 +21,16 @@ export const useRegisterForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!formData.first_name.trim() || !formData.last_name.trim()) {
+      setError('Укажите имя и фамилию');
+      return;
+    }
+    if (formData.password.length < 8) {
+      setError('Пароль должен содержать не менее 8 символов');
+      return;
+    }
+
     setIsLoading(true);
     try {
       await registerUser(formData);

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { findUserByEmail } from '../api/teams';
-import { useTeams, useCreateTeam, useAddTeamMember, useRemoveTeamMember } from '../hooks/useTeams';
+import { useTeams, useCreateTeam, useDeleteTeam, useAddTeamMember, useRemoveTeamMember } from '../hooks/useTeams';
 import { useEvents } from '../hooks/useEvents';
 import { useTracks } from '../hooks/useTracks';
 import { useProfile } from '../hooks/useProfile';
@@ -28,6 +28,7 @@ export default function TeamsPage() {
   const { data: tracks = [] } = useTracks();
 
   const createTeamMutation = useCreateTeam();
+  const deleteTeamMutation = useDeleteTeam();
   const addMemberMutation = useAddTeamMember();
   const removeMemberMutation = useRemoveTeamMember();
 
@@ -47,11 +48,17 @@ export default function TeamsPage() {
 
   const handleCreateTeam = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    createTeamMutation.mutate({
-      name: newTeamName,
-      event_id: newTeamEventId || null,
-      track_id: newTeamTrackId || null,
-    });
+    createTeamMutation.mutate(
+      { name: newTeamName, event_id: newTeamEventId || null, track_id: newTeamTrackId || null },
+      {
+        onSuccess: () => {
+          setShowCreateModal(false);
+          setNewTeamName('');
+          setNewTeamEventId('');
+          setNewTeamTrackId('');
+        },
+      }
+    );
   };
 
   const handleAddMember = async (e: React.SyntheticEvent) => {
@@ -63,11 +70,16 @@ export default function TeamsPage() {
         alert('Пользователь с таким email не найден');
         return;
       }
-      addMemberMutation.mutate({
-        teamId: selectedTeam.id,
-        user_id: users[0].id,
-        role: newMemberRole as 'captain' | 'member',
-      });
+      addMemberMutation.mutate(
+        { teamId: selectedTeam.id, user_id: users[0].id, role: newMemberRole as 'captain' | 'member' },
+        {
+          onSuccess: () => {
+            setShowAddMemberModal(false);
+            setSelectedTeam(null);
+            setNewMemberEmail('');
+          },
+        }
+      );
     } catch {
       alert('Ошибка при поиске пользователя');
     }
@@ -246,6 +258,19 @@ export default function TeamsPage() {
                 >
                   Подробнее
                 </Link>
+                {(isAdmin || team.captain_id === currentUser?.id) && (
+                  <button
+                    onClick={() => {
+                      if (confirm(`Удалить команду «${team.name}»? Это действие нельзя отменить.`)) {
+                        deleteTeamMutation.mutate(team.id);
+                      }
+                    }}
+                    className="px-3 py-2 rounded-xl bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 transition-all"
+                    title="Удалить команду"
+                  >
+                    Del
+                  </button>
+                )}
               </div>
             </div>
           ))}

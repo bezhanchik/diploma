@@ -25,6 +25,10 @@ export const removeTeamMember = async (teamId: number, userId: number): Promise<
   await apiClient.delete(`/teams/${teamId}/members/${userId}`);
 };
 
+export const deleteTeam = async (teamId: number): Promise<void> => {
+  await apiClient.delete(`/teams/${teamId}`);
+};
+
 export const findUserByEmail = async (email: string): Promise<User[]> => {
   const { data } = await apiClient.get<User[]>(`/users/search?email=${encodeURIComponent(email)}`);
   return data;

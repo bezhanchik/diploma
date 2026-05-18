@@ -1,55 +1,67 @@
-from typing import Annotated
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, func
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
-from app.deps import get_current_admin
-from app.models import User, Event, Track, Challenge, Team, TeamMember
-from app.schemas import (
-    EventCreate, EventUpdate, EventOut, EventDetailOut,
-    TrackWithChallengesOut, TeamBriefOut, ChallengeOut, UserOut,
-)
+from app.deps import get_current_user, get_current_admin
+from app.models import User, Event, EventStatus, Track, Team
+from app.schemas import EventCreate, EventUpdate, EventOut, EventDetailOut, TrackWithChallengesOut, ChallengeOut, TeamBriefOut, UserOut
 
 router = APIRouter(prefix="/events", tags=["Events"])
 
 
+def _resolve_status(db: Session, status_name: Optional[str]) -> Optional[int]:
+    if not status_name:
+        return None
+    row = db.scalar(select(EventStatus).where(EventStatus.name == status_name))
+    if row:
+        return row.id_status
+    new_status = EventStatus(name=status_name)
+    db.add(new_status)
+    db.flush()
+    return new_status.id_status
+
+
 @router.get("", response_model=list[EventOut])
-def get_events(db: Annotated[Session, Depends(get_db)]):
-    return db.scalars(select(Event)).all()
+def get_events(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    events = db.scalars(select(Event).options(selectinload(Event.status_obj))).all()
+    return events
 
 
 @router.get("/{event_id}", response_model=EventDetailOut)
-def get_event(event_id: int, db: Annotated[Session, Depends(get_db)]):
-    event = db.get(Event, event_id)
+def get_event(event_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    event = db.scalar(
+        select(Event)
+        .options(
+            selectinload(Event.status_obj),
+            selectinload(Event.tracks).selectinload(Track.cases),
+            selectinload(Event.teams).selectinload(Team.members),
+        )
+        .where(Event.id_event == event_id)
+    )
     if not event:
         raise HTTPException(status_code=404, detail="Мероприятие не найдено")
 
-    tracks = db.scalars(select(Track).where(Track.event_id == event_id)).all()
-    tracks_out = []
-    total_challenges = 0
-    for track in tracks:
-        challenges = db.scalars(select(Challenge).where(Challenge.track_id == track.id)).all()
-        total_challenges += len(challenges)
-        tracks_out.append(TrackWithChallengesOut(
-            id=track.id,
-            name=track.name,
-            challenges=[ChallengeOut.model_validate(c) for c in challenges],
-        ))
+    tracks_out = [
+        TrackWithChallengesOut(
+            id=t.id,
+            name=t.name,
+            challenges=[ChallengeOut(id=c.id, title=c.title, description=c.description, track_id=c.track_id) for c in t.cases],
+        )
+        for t in event.tracks
+    ]
 
-    teams = db.scalars(select(Team).where(Team.event_id == event_id)).all()
-    teams_out = []
-    for team in teams:
-        members_count = db.scalar(
-            select(func.count()).select_from(TeamMember).where(TeamMember.team_id == team.id)
-        ) or 0
-        teams_out.append(TeamBriefOut(
+    teams_out = [
+        TeamBriefOut(
             id=team.id,
             name=team.name,
-            captain=UserOut.model_validate(team.captain) if team.captain else None,
-            members_count=members_count,
-        ))
+            captain=None,
+            members_count=len(team.members),
+        )
+        for team in event.teams
+    ]
 
     return EventDetailOut(
         id=event.id,
@@ -57,26 +69,26 @@ def get_event(event_id: int, db: Annotated[Session, Depends(get_db)]):
         status=event.status,
         start_date=event.start_date,
         end_date=event.end_date,
-        organization_id=event.organization_id,
+        organizer_name=event.organizer_name,
         tracks=tracks_out,
         teams=teams_out,
-        teams_count=len(teams_out),
-        challenges_count=total_challenges,
+        teams_count=len(event.teams),
+        challenges_count=sum(len(t.cases) for t in event.tracks),
     )
 
 
 @router.post("", response_model=EventOut, status_code=status.HTTP_201_CREATED)
 def create_event(
     payload: EventCreate,
-    db: Annotated[Session, Depends(get_db)],
-    current_admin: Annotated[User, Depends(get_current_admin)],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin),
 ):
     event = Event(
-        title=payload.title,
-        status=payload.status,
+        name=payload.title,
         start_date=payload.start_date,
         end_date=payload.end_date,
-        organization_id=payload.organization_id,
+        status_id=_resolve_status(db, payload.status),
+        organizer_name=getattr(payload, 'organizer_name', None),
     )
     db.add(event)
     db.commit()
@@ -88,14 +100,20 @@ def create_event(
 def update_event(
     event_id: int,
     payload: EventUpdate,
-    db: Annotated[Session, Depends(get_db)],
-    current_admin: Annotated[User, Depends(get_current_admin)],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin),
 ):
     event = db.get(Event, event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Мероприятие не найдено")
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(event, field, value)
+    if payload.title is not None:
+        event.name = payload.title
+    if payload.status is not None:
+        event.status_id = _resolve_status(db, payload.status)
+    if payload.start_date is not None:
+        event.start_date = payload.start_date
+    if payload.end_date is not None:
+        event.end_date = payload.end_date
     db.commit()
     db.refresh(event)
     return event
@@ -104,8 +122,8 @@ def update_event(
 @router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_event(
     event_id: int,
-    db: Annotated[Session, Depends(get_db)],
-    current_admin: Annotated[User, Depends(get_current_admin)],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin),
 ):
     event = db.get(Event, event_id)
     if not event:

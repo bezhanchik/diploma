@@ -65,14 +65,16 @@ function Sidebar() {
         </div>
 
         {/* Логотип */}
-        <div className="p-6 pb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-lg">
-              H
+        <Link to={'/'}>
+          <div className="p-6 pb-8">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-lg">
+                H
+              </div>
+              <h1 className="text-xl font-bold tracking-tight text-white">HackSpace<span className="text-indigo-400">Edu</span></h1>
             </div>
-            <h1 className="text-xl font-bold tracking-tight text-white">HackSpace<span className="text-indigo-400">Edu</span></h1>
           </div>
-        </div>
+        </Link>
 
         {/* Навигация */}
         <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">

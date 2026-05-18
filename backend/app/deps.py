@@ -42,7 +42,6 @@ def get_current_admin(
 ) -> User:
     """
     Проверяет, что текущий пользователь является администратором.
-    Теперь проверка идет через поле role в БД, а не через список email.
     """
     if current_user.role != "admin":
         raise HTTPException(

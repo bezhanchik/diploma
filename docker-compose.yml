@@ -1,34 +1,15 @@
 services:
-  db:
-    image: postgres:18
-    container_name: hackathon_db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASS}
-      POSTGRES_DB: ${DB_NAME}
-    volumes:
-      - postgres_data:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   backend:
     build: ./backend
     container_name: hackathon_backend
     ports:
       - "8000:8000"
     environment:
-      DB_HOST: db
+      DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT:-5432}
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
       DB_NAME: ${DB_NAME}
-    depends_on:
-      db:
-        condition: service_healthy
     volumes:
       - ./backend:/app
 
@@ -43,6 +24,3 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true
     stdin_open: true
-
-volumes:
-  postgres_data:

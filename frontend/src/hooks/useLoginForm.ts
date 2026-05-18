@@ -21,7 +21,7 @@ export const useLoginForm = () => {
       await dispatch(loginUser({ email, password })).unwrap();
       navigate('/', { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка входа');
+      setError((err as { message?: string })?.message || 'Ошибка входа');
     } finally {
       setIsLoading(false);
     }
