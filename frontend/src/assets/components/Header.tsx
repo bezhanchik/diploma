@@ -1,4 +1,3 @@
-// src/assets/components/Header.tsx
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { useQueryClient } from '@tanstack/react-query';
